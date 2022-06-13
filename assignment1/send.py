@@ -7,7 +7,7 @@ import random, string
 
 def randomword(max_length):
     length = random.randint(22, max_length)
-    return ''.join(random.choice(string.lowercase) for i in range(int(length)))
+    return ''.join(random.choice(string.ascii_lowercase) for i in range(int(length)))
 
 def send_random_traffic(num_packets, interface, src_ip, dst_ip):
     dst_mac = "00:00:00:00:00:01"
@@ -17,10 +17,10 @@ def send_random_traffic(num_packets, interface, src_ip, dst_ip):
     for i in range(num_packets):
             data = randomword(22)
             p = Ether(dst=dst_mac,src=src_mac)/IP(dst=dst_ip,src=src_ip)
-            p = p/UDP(sport= 50000, dport=port)/Raw(load=data)
+            p = p/TCP(sport= 5555, dport=port)/Raw(load=data)
             sendp(p, iface = interface, inter = 0.01)
             total_pkts += 1
-    print "Sent %s packets in total" % total_pkts
+    print ("Sent %s packets in total" % total_pkts)
 
 if __name__ == '__main__':
     if len(sys.argv) < 5:
