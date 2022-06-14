@@ -1,0 +1,10 @@
+%Plot CPF
+%M = readtable("ping_10ms.csv","ReadVariableNames",false);
+%M = M{:,:};
+%cdfplot(M)
+
+Plot Time
+M = [948 933 930 932 935 932 932 933 933 928];
+t = [1 2 3 4 5 6 7 8 9 10];
+plot(t,M)
+
