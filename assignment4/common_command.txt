@@ -1,7 +1,0 @@
-to local mac
-table_add MyIngress.ipv4_lpm MyIngress.ipv4_forward 192.168.20.1/32 => 0c:37:96:5f:8a:26 1
-table_add MyIngress.ipv4_lpm MyIngress.ipv4_forward 192.168.10.1/32 => e4:5f:01:87:5f:cb 0
-
-to dest mac
-table_add MyIngress.ipv4_lpm MyIngress.ipv4_forward 192.168.20.1/32 => 0c:37:96:5f:8a:15 1
-table_add MyIngress.ipv4_lpm MyIngress.ipv4_forward 192.168.10.1/32 => 0c:37:96:5f:8a:0b 0
