@@ -61,16 +61,12 @@ header ethernet_t {
  */
 const bit<16> P4WORDLE_ETYPE = 0x1234;
 const bit<48> P4WORDLE_HEADER = 0x574f52444c45;
-const bit<40> P4WORDLE_TEST_WORD = 0x524f555445;
+const bit<40> P4WORDLE_TEST_WORD = 0x524f555445; /*The secret word is ROUTE*/
 
 header p4wordle_t {
-
    bit<48> wordle;
-   
    bit<40> guess;
-   
    bit<16> outcome;
-   
 }
 
 /*
@@ -91,9 +87,12 @@ struct headers {
  */
 
 struct metadata {
-    /* In our case it is empty */
+    bit<32> guess_counter;
+    bit<32> word_list_pointer;
+    bit<40> secret_word;
+    
+    bit<8> cur_char;
 }
-
 /*************************************************************************
  ***********************  P A R S E R  ***********************************
  *************************************************************************/
@@ -144,6 +143,11 @@ control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
     
+    /*Here are the registers*/
+    register <bit<40>>(8) word_list;
+    register <bit<32>>(1) guess_counter_state;
+    register <bit<32>>(1) word_list_pointer_state;
+
     action state_machine(bit<16> input){
         hdr.p4wordle.outcome = hdr.p4wordle.outcome | input;
     }
@@ -161,114 +165,127 @@ control MyIngress(inout headers hdr,
         mark_to_drop(standard_metadata);
     }
     
-    
-    table operation_char_1 {
-    	key = {
-            hdr.p4wordle.guess[7:0]  : exact;
+    action compare_char(bit<8> cur_char, bit<3> i, bit<16> exist, bit<16> right_place){
+        if (cur_char == meta.secret_word[7:0]){
+            if (i==1){
+                state_machine(right_place);
+            }
+            else{
+                state_machine(exist);
+            }
         }
-		actions = {
-            send_forward;
-            state_machine;
-            operation_drop;
+        if (cur_char == meta.secret_word[15:8]){
+            if (i==2){
+                state_machine(right_place);
+            }
+            else{
+                state_machine(exist);
+            }
         }
-        const default_action = operation_drop();
-        
-        const entries = {
-            P4WORDLE_TEST_WORD[7:0] : state_machine(0xc000);
-            P4WORDLE_TEST_WORD[15:8] : state_machine(0x4000);
-            P4WORDLE_TEST_WORD[23:16] : state_machine(0x4000);
-            P4WORDLE_TEST_WORD[31:24] : state_machine(0x4000);
-            P4WORDLE_TEST_WORD[39:32] : state_machine(0x4000);
+        if (cur_char == meta.secret_word[23:16]){
+            if (i==3){
+                state_machine(right_place);
+            }
+            else{
+                state_machine(exist);
+            }
         }
-    }
-
-    table operation_char_2 {
-    	key = {
-            hdr.p4wordle.guess[15:8]  : exact;
+        if (cur_char == meta.secret_word[31:24]){
+            if (i==4){
+                state_machine(right_place);
+            }
+            else{
+                state_machine(exist);
+            }
         }
-		actions = {
-            send_forward;
-            state_machine;
-            operation_drop;
-        }
-        const default_action = operation_drop();
-        
-        const entries = {
-            P4WORDLE_TEST_WORD[7:0] : state_machine(0x1000);
-            P4WORDLE_TEST_WORD[15:8] : state_machine(0x3000);
-            P4WORDLE_TEST_WORD[23:16] : state_machine(0x1000);
-            P4WORDLE_TEST_WORD[31:24] : state_machine(0x1000);
-            P4WORDLE_TEST_WORD[39:32] : state_machine(0x1000);
-        }
-    }
-
-    table operation_char_3 {
-    	key = {
-            hdr.p4wordle.guess[23:16]  : exact;
-        }
-		actions = {
-            send_forward;
-            state_machine;
-            operation_drop;
-        }
-        const default_action = operation_drop();
-        
-        const entries = {
-            P4WORDLE_TEST_WORD[7:0] : state_machine(0x0400);
-            P4WORDLE_TEST_WORD[15:8] : state_machine(0x0400);
-            P4WORDLE_TEST_WORD[23:16] : state_machine(0x0c00);
-            P4WORDLE_TEST_WORD[31:24] : state_machine(0x0400);
-            P4WORDLE_TEST_WORD[39:32] : state_machine(0x0400);
+        if (cur_char == meta.secret_word[39:32]){
+            if (i==5){
+                state_machine(right_place);
+            }
+            else{
+                state_machine(exist);
+            }
         }
     }
 
-    table operation_char_4 {
-    	key = {
-            hdr.p4wordle.guess[31:24]  : exact;
+    action operation_check_char(bit<3> i){
+        if (i==1){
+            meta.cur_char = hdr.p4wordle.guess[7:0];
+            compare_char(meta.cur_char,1,0x4000,0xc000);
+            
         }
-		actions = {
-            send_forward;
-            state_machine;
-            operation_drop;
-        }
-        const default_action = operation_drop();
         
-        const entries = {
-            P4WORDLE_TEST_WORD[7:0] : state_machine(0x0100);
-            P4WORDLE_TEST_WORD[15:8] : state_machine(0x0100);
-            P4WORDLE_TEST_WORD[23:16] : state_machine(0x0100);
-            P4WORDLE_TEST_WORD[31:24] : state_machine(0x0300);
-            P4WORDLE_TEST_WORD[39:32] : state_machine(0x0100);
+        if (i==2){
+            meta.cur_char = hdr.p4wordle.guess[15:8];
+            compare_char(meta.cur_char,2,0x1000,0x3000);
         }
-    }
 
-    table operation_char_5 {
-    	key = {
-            hdr.p4wordle.guess[39:32]  : exact;
+        if (i==3){
+            meta.cur_char = hdr.p4wordle.guess[23:16];
+            compare_char(meta.cur_char,3,0x0400,0x0c00);
+
         }
-		actions = {
-            send_forward;
-            state_machine;
-            operation_drop;
+
+        if (i==4){
+            meta.cur_char = hdr.p4wordle.guess[31:24];
+            compare_char(meta.cur_char,4,0x0100,0x0300);
+
         }
-        const default_action = operation_drop();
         
-        const entries = {
-            P4WORDLE_TEST_WORD[7:0] : state_machine(0x0040);
-            P4WORDLE_TEST_WORD[15:8] : state_machine(0x0040);
-            P4WORDLE_TEST_WORD[23:16] : state_machine(0x0040);
-            P4WORDLE_TEST_WORD[31:24] : state_machine(0x0040);
-            P4WORDLE_TEST_WORD[39:32] : state_machine(0x00c0);
+        if (i==5){
+            meta.cur_char = hdr.p4wordle.guess[39:32];
+            compare_char(meta.cur_char,5,0x0040,0x00c0);
         }
     }
 
     apply {
+        word_list.write(0,0x524f555445);/*ROUTE*/
+        word_list.write(1,0x5441424c45);/*TABLE*/
+        word_list.write(2,0x4D41474943);/*MAGIC*/
+        word_list.write(3,0x47414D4553);/*GAMES*/
+        word_list.write(4,0x4D4F555345); /*MOUSE*/
+        word_list.write(5,0x4241434F4E); /*BACON*/
+        word_list.write(6,0x43554C5453); /*CULTS*/
+        word_list.write(7,0x535441494E); /*STAIN*/
+
+
         if (hdr.p4wordle.isValid()) {
-            operation_char_1.apply();
-            operation_char_2.apply();
-            operation_char_3.apply();
-            operation_char_4.apply();
-            operation_char_5.apply();
+
+            /* State operations */
+            guess_counter_state.read(meta.guess_counter, 0);
+            word_list_pointer_state.read(meta.word_list_pointer, 0);
+            word_list.read(meta.secret_word, meta.word_list_pointer); 
+
+            operation_check_char(1);
+            operation_check_char(2);
+            operation_check_char(3);
+            operation_check_char(4);
+            operation_check_char(5);
+
+
+            if (hdr.p4wordle.outcome == 0xffc0){
+                meta.guess_counter = 0;
+                meta.word_list_pointer = meta.word_list_pointer+1; 
+                if (meta.word_list_pointer == 8){
+                    meta.word_list_pointer = 0;
+                }
+            }
+            else{
+                meta.guess_counter = meta.guess_counter + 1;
+                if (meta.guess_counter == 6){
+                    meta.guess_counter = 0;
+                    meta.word_list_pointer = meta.word_list_pointer + 1;
+                    if (meta.word_list_pointer == 8){
+                        meta.word_list_pointer = 0;
+                    }
+                }
+            }
+
+            guess_counter_state.write(0,meta.guess_counter);
+            word_list_pointer_state.write(0, meta.word_list_pointer);
+
+
+
             send_forward();
         } 
         else {
